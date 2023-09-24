@@ -1,36 +1,56 @@
 const express = require('express');
-const { exec } = require('child_process');
-const fs = require('fs');
+const Docker = require('dockerode');
+const cors = require('cors');
 const app = express();
 
 app.use(express.json());
-
+app.use(cors());
 app.get('/', (req, res) => {
     res.send('Hello World!');
 });
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  optionsSuccessStatus: 200 
+}
+
+app.use(cors(corsOptions));
 
 app.post('/run', async (req, res) => {
     const code = req.body.code;
-    fs.writeFile('./code/Hello.java', code, (err) => {
-        if (err) throw err;
+    const input = req.body.input || '';
+    const command = `cat <<EOF > Main.java 
+${code} 
+EOF
+javac Main.java
+cat <<EOF >input.txt
+${input}
+EOF
+cat input.txt | java Main`;
+    
+    const docker = new Docker();
+    const container = await docker.createContainer({
+        Image: 'amazoncorretto',
+        Cmd: ['/bin/bash', '-c', command],
+        Tty: true,
+        OpenStdin: true,
+        StdinOnce: false,
     });
-    exec('docker build -t code ./code', (err, stdout, stderr) => {
-        if (err) {
-            res.send(stderr);
-        }
-        exec('docker run code', (err, stdout, stderr) => {
-            if (err) {
-                res.send(stderr);
-            }
-            fs.unlink('./code/Hello.java', (err) => {
-                if (err) throw err;
-            });
-            exec('docker rmi code -f');
-            res.send(stdout);
-        });
+    container.start();
+    const stream = await container.attach({ stream: true, stdout: true, stderr: true });
+    const output = [];
+    stream.on('error', (err) => {
+        console.log(err);
+        res.send(err);
+    });
+    stream.on('data', (chunk) => {
+        output.push(chunk.toString());
+    });
+    stream.on('end', () => {
+        container.remove();
+        res.json({ output: output.join('') });
     });
 });
     
-app.listen(3000, () => {
-    console.log('listening on port 3000!');
+app.listen(5000, () => {
+    console.log('listening on port 5000!');
 });
