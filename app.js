@@ -25,7 +25,7 @@ javac Main.java
 cat <<EOF >input.txt
 ${input}
 EOF
-cat input.txt | java Main`;
+cat input.txt | timeout 2s java Main`;
     
     const docker = new Docker();
     const container = await docker.createContainer({
@@ -35,6 +35,7 @@ cat input.txt | java Main`;
         OpenStdin: true,
         StdinOnce: false,
     });
+    const currentTime = new Date();
     container.start();
     const stream = await container.attach({ stream: true, stdout: true, stderr: true });
     const output = [];
@@ -47,7 +48,13 @@ cat input.txt | java Main`;
     });
     stream.on('end', () => {
         container.remove();
-        res.json({ output: output.join('') });
+        const finalTime = new Date();
+        const executionTime = finalTime - currentTime;
+        if (executionTime > 2000) res.json({ output: 'Error: Execution Time Limit Exceeded' });
+        else {
+            output.push(`\n\nExecution Time: ${finalTime - currentTime}ms`);
+            res.json({ output: output.join('') });
+        }
     });
 });
     
