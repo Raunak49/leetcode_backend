@@ -2,12 +2,21 @@ const express = require("express");
 const Docker = require("dockerode");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const https = require('https');
+const fs = require('fs');
 const app = express();
 require("dotenv").config();
 
 const Submission = require("./models/Submission.js");
 const User = require("./models/User.js");
 const execute = require('./Execute/Queue.js');
+
+const options = {
+  cert: fs.readFileSync('./certificates/65.0.5.215.crt'),
+  key: fs.readFileSync('./certificates/65.0.5.215.key')
+};
+
+const server = https.createServer(options, app);
 
 app.use(express.json());
 app.use(cors());
@@ -68,6 +77,10 @@ app.all("*", (req, res) => {
     res.send("URL not found");
 })
 
-app.listen(5000, () => {
-  console.log("listening on port 5000!");
+app.listen(3000, () => {
+  console.log("listening on port 3000!");
+});
+
+server.listen(443, () => {
+  console.log('Server listening on port 443');
 });
