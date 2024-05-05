@@ -1,22 +1,20 @@
 const express = require("express");
-const Docker = require("dockerode");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const https = require('https');
-const fs = require('fs');
 const app = express();
+const AWS = require("aws-sdk");
+const amqp = require('amqplib/callback_api');
 require("dotenv").config();
 
+
+// const sqs = new AWS.SQS({
+//   region: "ap-south-1",
+//   accessKeyId: process.env.AWS_ACCESS_KEY,
+//   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+//   apiVersion: "2012-11-05",  
+// });
+
 const Submission = require("./models/Submission.js");
-const User = require("./models/User.js");
-const execute = require('./Execute/Queue.js');
-
-const options = {
-  cert: fs.readFileSync('./certificates/65.0.5.215.crt'),
-  key: fs.readFileSync('./certificates/65.0.5.215.key')
-};
-
-const server = https.createServer(options, app);
 
 app.use(express.json());
 app.use(cors());
@@ -40,6 +38,19 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+let channel = null;
+
+amqp.connect(process.env.RABBITMQ_URL, (err, connection) => {
+  if (err) {
+    console.log(err);
+  }
+  connection.createChannel((err, chann) => {
+    if (err) {
+      console.log(err);
+    }
+    channel = chann;
+  });
+});
 
 app.post("/run", async(req,res) => {
     try {
@@ -53,7 +64,24 @@ app.post("/run", async(req,res) => {
 
         const submission = await Submission.create({code, input, language});
         res.json({id: submission._id});
-        execute(submission);
+        
+        // const params = {
+        //   MessageBody: JSON.stringify({submission}),
+        //   QueueUrl: process.env.AWS_SQS_URL,
+        //   MessageGroupId: "1",
+        //   MessageDeduplicationId: submission._id.toString()
+        // }
+        
+        // sqs.sendMessage(params, function (err, data) {
+        //   if (err) {
+        //     console.log("Error", err);
+        //   } else {
+        //     console.log("Success", data.MessageId);
+        //   }
+        // });
+        const message = JSON.stringify({submission});
+        channel.assertQueue("task_queue", {durable: true});
+        channel.sendToQueue("task_queue", Buffer.from(message), {persistent: true});
     } catch(error) {
         console.log(error);
         res.json(error).status(500);
@@ -77,10 +105,7 @@ app.all("*", (req, res) => {
     res.send("URL not found");
 })
 
-app.listen(3000, () => {
-  console.log("listening on port 3000!");
+app.listen(5000, () => {
+  console.log("listening on port 5000!");
 });
 
-server.listen(443, () => {
-  console.log('Server listening on port 443');
-});

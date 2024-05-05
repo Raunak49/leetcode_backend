@@ -1,9 +1,5 @@
-const express = require("express");
 const Docker = require("dockerode");
-const fs = require("fs");
-const { exec } = require("child_process");
 const Submission = require("../models/Submission");
-const { stderr } = require("process");
 
 const python = async (submission) => {
   const id = submission._id;
@@ -17,7 +13,7 @@ EOF
 cat <<EOF > input.txt
 ${input}
 EOF
-timeout 3s python3 hello.py < input.txt`;
+timeout 10s python3 hello.py < input.txt`;
 
     const docker = new Docker();
     const container = await docker.createContainer({
@@ -46,7 +42,7 @@ timeout 3s python3 hello.py < input.txt`;
       container.remove();
       const finalTime = new Date();
       const executionTime = finalTime - currentTime;
-      if (executionTime > 2000)
+      if (executionTime > 10000)
         await Submission.findByIdAndUpdate(id, {
           status: "Error",
           output: "Time Limit Exceeded",

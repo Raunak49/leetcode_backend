@@ -1,4 +1,3 @@
-const express = require('express');
 const Docker = require('dockerode');
 const Submission = require('../models/Submission');
 
@@ -15,7 +14,7 @@ javac Main.java
 cat <<EOF >input.txt
 ${input}
 EOF
-cat input.txt | timeout 4s java Main`;
+cat input.txt | timeout 10s java Main`;
     
         const docker = new Docker();
         const container = await docker.createContainer({
@@ -44,7 +43,7 @@ cat input.txt | timeout 4s java Main`;
             container.remove();
             const finalTime = new Date();
             const executionTime = finalTime - currentTime;
-            if (executionTime > 4000)
+            if (executionTime > 10000)
                 await Submission.findByIdAndUpdate(id, {
                     status: "Error",
                     output: "Time Limit Exceeded",

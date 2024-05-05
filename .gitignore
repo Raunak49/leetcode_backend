@@ -1,2 +1,4 @@
-/node_modules
-.env
+/Execute/node_modules
+/Execute/.env
+/main/node_modules
+/main/.env

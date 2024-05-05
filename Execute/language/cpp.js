@@ -1,4 +1,3 @@
-const express = require('express');
 const Docker = require('dockerode');
 const Submission = require('../models/Submission');
 
@@ -15,7 +14,7 @@ g++ program.cpp
 cat <<EOF >input.txt
 ${input}
 EOF
-timeout 5s ./a.out < input.txt`;
+timeout 10s ./a.out < input.txt`;
     
         const docker = new Docker();
         const container = await docker.createContainer({
@@ -43,7 +42,7 @@ timeout 5s ./a.out < input.txt`;
             container.remove();
             const finalTime = new Date();
             const executionTime = finalTime - currentTime;
-            if (executionTime > 5000)
+            if (executionTime > 10000)
                 await Submission.findByIdAndUpdate(id, {
                     status: "Error",
                     output: "Time Limit Exceeded",
